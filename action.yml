@@ -9,6 +9,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: 🔄 Checkout the repo
+      uses: actions/checkout@v3
+      
     - name: Checkout PR body and parse metadata
       shell: bash
       run: |
