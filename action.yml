@@ -1,9 +1,11 @@
-name: Sync Hotfix Metadata
+name: 🔄 Sync Hotfix Metadata
 description: Parses checkboxes and text in PR body and syncs metadata JSON block
+
 inputs:
   github_token:
     required: true
     description: GitHub token to update PR body
+
 runs:
   using: "composite"
   steps:
