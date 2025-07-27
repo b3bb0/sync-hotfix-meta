@@ -6,13 +6,22 @@ inputs:
     required: true
     description: GitHub token to update PR body
 
+outputs:
+  merge_mode:
+    description: Merge mode parsed from PR body
+  tag:
+    description: Tag parsed from PR body
+  branches:
+    description: Branch list parsed from PR body
+
 runs:
   using: "composite"
   steps:
     - name: 🔄 Checkout the repo
       uses: actions/checkout@v3
-      
-    - name: Checkout PR body and parse metadata
+
+    - name: 📦 Checkout PR body and parse metadata
+      id: parse
       shell: bash
       run: |
         BODY_FILE=pr_body.txt
@@ -52,6 +61,10 @@ runs:
 
         echo "$NEW_BODY" > new_pr_body.txt
         gh pr edit ${{ github.event.pull_request.number }} --body-file new_pr_body.txt
+
+        echo "merge_mode=$MERGE_MODE" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
 
       env:
         GH_TOKEN: ${{ inputs.github_token }}
