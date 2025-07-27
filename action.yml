@@ -1,0 +1,53 @@
+name: Sync Hotfix Metadata
+description: Parses checkboxes and text in PR body and syncs metadata JSON block
+inputs:
+  github_token:
+    required: true
+    description: GitHub token to update PR body
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout PR body and parse metadata
+      shell: bash
+      run: |
+        BODY_FILE=pr_body.txt
+        gh pr view ${{ github.event.pull_request.number }} --json body -q .body > $BODY_FILE
+
+        MERGE_MODE="ff"
+        TAG=""
+        BRANCHES=""
+
+        if grep -iqE 'no-ff.*\[x\]|\[x\].*no-ff' $BODY_FILE; then
+          MERGE_MODE="no-ff"
+        fi
+
+        TAG=$(grep -i 'apply tag' $BODY_FILE | sed -E 's/.*apply tag[: ]*`?([^`\n]+)`?.*/\1/i' | tr -d ' ')
+        BRANCHES=$(grep -i 'promote to branches' $BODY_FILE | sed -E 's/.*branches[: ]*([^`\n]+).*/\1/i' | tr -d ' ')
+
+        BRANCH_ARRAY=$(echo "$BRANCHES" | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
+
+        echo "📦 Detected:"
+        echo "merge_mode: $MERGE_MODE"
+        echo "tag: $TAG"
+        echo "branches: $BRANCH_ARRAY"
+
+        JSON=$(jq -n --arg mode "$MERGE_MODE" --arg tag "$TAG" --argjson branches "$BRANCH_ARRAY"           '{merge_mode: $mode, tag: $tag, branches: $branches}')
+
+        CLEANED=$(awk '/<details>/{flag=1;next}/<\/details>/{flag=0;next}!flag' $BODY_FILE)
+
+        NEW_BODY="$CLEANED
+
+<details>
+<summary>🤖 Automation Metadata (do not edit manually)</summary>
+
+\`\`\`json
+$JSON
+\`\`\`
+
+</details>"
+
+        echo "$NEW_BODY" > new_pr_body.txt
+        gh pr edit ${{ github.event.pull_request.number }} --body-file new_pr_body.txt
+
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
